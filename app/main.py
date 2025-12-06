@@ -1,11 +1,15 @@
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from dotenv import load_dotenv
 from .send_mail import send_otp_email
 from . import models
 from .database import engine, SessionLocal
 from typing import List
 from .schema import UserCreate, Task, TaskCreate, TaskUpdate
+
+# Load environment variables from .env file
+load_dotenv()
 
 models.Base.metadata.create_all(bind=engine)
 

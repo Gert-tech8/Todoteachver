@@ -9,3 +9,6 @@ migrate_rollback:
 
 migrate_history:
 	alembic history
+
+start:
+    uvicorn app.main:app --reload

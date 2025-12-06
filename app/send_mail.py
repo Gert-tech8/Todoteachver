@@ -13,10 +13,10 @@ def send_otp_email(to_email: str, otp_code: str) -> None:
       SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
     """
     smtp_host = "smtp.gmail.com"  # Default to Gmail SMTP
-    smtp_port = 465          # Default to Gmail SMTP port
-    smtp_user = "example@gmail.com"
+    smtp_port = 465          # Default to Gmail SMTP port (SSL)
+    smtp_user = os.getenv("SMTP_USER")
     smtp_password = os.getenv("SMTP_PASSWORD")
-    smtp_from = os.getenv("SMTP_FROM")
+    smtp_from = os.getenv("SMTP_FROM", smtp_user)  # Default to smtp_user if not set
 
     subject = "Your OTP for Todo Application"
     body = f"Your verification OTP is: {otp_code}\n\nIf you didn't request this, ignore this message."
@@ -33,8 +33,9 @@ def send_otp_email(to_email: str, otp_code: str) -> None:
     msg.set_content(body)
 
     context = ssl.create_default_context()
-    with smtplib.SMTP(smtp_host, smtp_port) as server:
-        server.starttls(context=context)
+    # Port 465 requires SMTP_SSL (implicit TLS)
+    with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
         server.login(smtp_user, smtp_password)
         server.send_message(msg)
+        print("OTP email sent to", to_email)
 # ...existing code...
