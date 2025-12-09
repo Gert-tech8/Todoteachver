@@ -19,7 +19,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
+# Only one CryptContext declaration, using Argon2
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def get_db():
     db = SessionLocal()
@@ -39,15 +40,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
-    # validate password length in bytes (bcrypt limit is 72 bytes)
-    pwd_bytes = user.password.encode("utf-8")
-    if len(pwd_bytes) > 72:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password is too long. When encoded to UTF-8 it exceeds 72 bytes; choose a shorter password."
-        )
-
-    # hash password
+    # hash password with Argon2
     hashed_password = pwd_context.hash(user.password)
 
     db_user = models.User(
@@ -60,24 +53,22 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
 
-    # create otp
-    code = 123456  # In real application, generate a random OTP and send via email/SMS
-    otp = models.Otp(
-        user_id=db_user.id,
-        otp_code=code  # In real application, generate a random OTP and send via email/SMS
-    )
+    # create OTP
+    code = 123456  # generate random OTP in real app
+    otp = models.Otp(user_id=db_user.id, otp_code=code)
     db.add(otp)
     db.commit()
     db.refresh(otp)
 
     send_otp_email(to_email=db_user.email, otp_code=code)
-    # return user without password
+
     return {
         "id": getattr(db_user, "id", None),
         "first_name": db_user.first_name,
         "last_name": db_user.last_name,
         "email": db_user.email
     }
+
 
 @app.post("/tasks/", response_model=Task)
 def create_task(task: TaskCreate, db: Session = Depends(get_db)):

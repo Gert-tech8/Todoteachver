@@ -3,27 +3,24 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 
-
-
-def send_otp_email(to_email: str, otp_code: str) -> None:
+def send_otp_email(to_email: str, otp_code: int | str) -> None:
     """
     Send OTP to the user's email using SMTP settings from environment variables.
     If SMTP settings are not provided, this will print the OTP to stdout (dev fallback).
-    Required env vars for real SMTP:
-      SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
     """
-    smtp_host = "smtp.gmail.com"  # Default to Gmail SMTP
-    smtp_port = 465          # Default to Gmail SMTP port (SSL)
+    otp_code = str(otp_code)  # ensure string
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", 465))
     smtp_user = os.getenv("SMTP_USER")
     smtp_password = os.getenv("SMTP_PASSWORD")
-    smtp_from = os.getenv("SMTP_FROM", smtp_user)  # Default to smtp_user if not set
+    smtp_from = os.getenv("SMTP_FROM", smtp_user)
 
     subject = "Your OTP for Todo Application"
     body = f"Your verification OTP is: {otp_code}\n\nIf you didn't request this, ignore this message."
 
     if not smtp_host or not smtp_user or not smtp_password:
-        # Development fallback — print to console so you can copy the OTP during testing
-        print(f"[DEV EMAIL] To: {to_email} Subject: {subject}\n{body}")
+        # Development fallback
+        print(f"[DEV EMAIL] OTP for {to_email}: {otp_code}")
         return
 
     msg = EmailMessage()
@@ -33,9 +30,10 @@ def send_otp_email(to_email: str, otp_code: str) -> None:
     msg.set_content(body)
 
     context = ssl.create_default_context()
-    # Port 465 requires SMTP_SSL (implicit TLS)
-    with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
-        server.login(smtp_user, smtp_password)
-        server.send_message(msg)
-        print("OTP email sent to", to_email)
-# ...existing code...
+    try:
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+            print(f"OTP email sent to {to_email}")
+    except Exception as e:
+        print(f"Failed to send OTP email to {to_email}: {e}")
