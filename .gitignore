@@ -205,4 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+<<<<<<< HEAD
 **/mydb.db
+=======
+>>>>>>> b9e3f15efea760bfbc1c349da57675de755d702d
