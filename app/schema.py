@@ -17,6 +17,18 @@ class User(UserBase):
     class Config:
         orm_mode = True
 
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserOTPVerification(BaseModel):
+    email: str
+    otp_code: str
+
+class UserDelete(BaseModel):
+    email: str
+    password: str
+
 class Task(BaseModel):
     id: int
     title: str

@@ -6,7 +6,7 @@ from .send_mail import send_otp_email
 from . import models
 from .database import engine, SessionLocal
 from typing import List
-from .schema import UserCreate, Task, TaskCreate, TaskUpdate
+from .schema import UserCreate, UserLogin, UserOTPVerification, UserDelete, Task, TaskCreate, TaskUpdate
 
 # Load environment variables from .env file
 load_dotenv()
@@ -68,6 +68,67 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         "last_name": db_user.last_name,
         "email": db_user.email
     }
+
+@app.post("/verify-otp/")
+def verify_otp(otp_data: UserOTPVerification, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == otp_data.email).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User with this email does not exist")
+
+    db_otp = db.query(models.Otp).filter(models.Otp.user_id == db_user.id).first()
+    if not db_otp:
+        raise HTTPException(status_code=404, detail="No OTP found for this user")
+
+    if db_otp.otp_code != otp_data.otp_code:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    
+    db.delete(db_otp)
+    db.commit()
+
+    return {
+        "message": "OTP verified successfully",
+        "user_id": db_user.id,
+        "email": db_user.email
+    }
+
+
+@app.post("/login/")
+def login_user(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    if not db_user or not pwd_context.verify(user.password, db_user.password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    
+    return {
+        "message": "Login successful",
+        "user": {
+            "id": db_user.id,
+            "first_name": db_user.first_name,
+            "last_name": db_user.last_name,
+            "email": db_user.email
+        }
+    }
+
+@app.delete("/users/{user_id}", status_code=200)
+def delete_user(user_id: int, creds: UserDelete, db: Session = Depends(get_db)):
+    
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if db_user.email != creds.email:
+        raise HTTPException(status_code=401, detail="Credentials do not match this user")
+
+    if not pwd_context.verify(creds.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    db.query(models.Otp).filter(models.Otp.user_id == user_id).delete()
+    db.query(models.Task).filter(models.Task.owner_id == user_id).delete()
+
+    db.delete(db_user)
+    db.commit()
+
+    return {"message": "User deleted successfully"}
 
 
 @app.post("/tasks/", response_model=Task)
